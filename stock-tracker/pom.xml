@@ -120,6 +120,20 @@
 					<packaging>war</packaging>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.wildfly.plugins</groupId>
+				<artifactId>wildfly-maven-plugin</artifactId>
+				<version>4.2.2.Final</version>
+				<configuration>
+					<hostname>localhost</hostname>
+					<port>10090</port>
+					<username>${wildfly.username}</username>
+					<password>${wildfly.password}</password>
+					<jboss-home>C:\Program Files\JBOSS\jboss-eap-7.4</jboss-home>
+					<name>${project.build.finalName}.${project.packaging}</name>
+				</configuration>
+			</plugin>
+		</plugins>
 		</plugins>
 	</build>
 </project>
