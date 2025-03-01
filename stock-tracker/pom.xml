@@ -12,7 +12,7 @@
 	<artifactId>stock-tracker</artifactId>
 	<version>0.0.1</version>
 	<packaging>war</packaging>
-	<name>stock-tracker</name>
+	
 	<description>Spring Boot for fetching stck detail using yahoo api</description>
 	<url/>
 	<licenses>
