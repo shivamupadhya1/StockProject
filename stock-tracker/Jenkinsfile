@@ -28,7 +28,7 @@ pipeline {
 							artifacts: [
 								[artifactId: "${mavenPom.artifactId}",
 								 classifier: '',
-								 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.jar",
+								 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.war",
 								 type: 'jar'],
 								 [artifactId: "${mavenPom.artifactId}",
 								  classifier: '',
