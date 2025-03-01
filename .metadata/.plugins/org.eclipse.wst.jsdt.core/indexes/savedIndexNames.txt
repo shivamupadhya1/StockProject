@@ -1,7 +1,0 @@
-INDEX VERSION 1.4+D:\WorkSpace\StockProject\.metadata\.plugins\org.eclipse.wst.jsdt.core\indexes
-198020327.index
-550593295.index
-2290206996.index
-1936265896.index
-2597060516.index
-4147123976.index
