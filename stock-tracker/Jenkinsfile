@@ -47,8 +47,13 @@ pipeline {
 	                script {
 	                    echo 'Deploying to JBoss....'
 	
+	                    // Define the local Maven repository path
+	                    def mavenRepoLocal = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
+	
 	                    // Deploy to JBoss using Maven on Windows
-	                    bat 'mvn wildfly:deploy-only -Dwildfly.username=%JBOSS_CRED_USER% -Dwildfly.password=%JBOSS_CRED_PASSWORD%'
+	                    bat """
+	                        mvn -Dmaven.repo.local=${mavenRepoLocal} wildfly:deploy-only -Dwildfly.username=%JBOSS_CRED_USER% -Dwildfly.password=%JBOSS_CRED_PASSWORD%
+	                    """
 	                }
 	            }
 	        }
