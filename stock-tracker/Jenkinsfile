@@ -47,8 +47,8 @@ pipeline {
 	                script {
 	                    echo 'Deploying to JBoss....'
 	
-	                    // Deploy to JBoss
-	                    sh 'mvn wildfly:deploy-only -Dwildfly.username=${JBOSS_CRED_USER} -Dwildfly.password=${JBOSS_CRED_PASSWORD}'
+	                    // Deploy to JBoss using Maven on Windows
+	                    bat 'mvn wildfly:deploy-only -Dwildfly.username=%JBOSS_CRED_USER% -Dwildfly.password=%JBOSS_CRED_PASSWORD%'
 	                }
 	            }
 	        }
