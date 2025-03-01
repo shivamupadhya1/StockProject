@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                dir('stock-tracker') {
+                    script {
+                        echo 'Building the project...'
+                        bat 'mvn clean install'
+                    }
+                }
+            }
+        }
+        stage('Nexus Deploy') {
+            steps {
+				dir('stock-tracker') {
+					script{
+						echo 'Deploying....'
+						def mavenPom = readMavenPom file: 'pom.xml'
+						nexusArtifactUploader(
+							nexusVersion: 'nexus3',
+							protocol: 'http',
+							nexusUrl: 'localhost:8090',
+							groupId: "${mavenPom.groupId}",
+							version: "${mavenPom.version}",
+							repository: 'INTEGRATIONS_CLIENT',
+							credentialsId: 'NEXUS_CRED',
+							artifacts: [
+								[artifactId: "${mavenPom.artifactId}",
+								 classifier: '',
+								 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.jar",
+								 type: 'jar'],
+								 [artifactId: "${mavenPom.artifactId}",
+								  classifier: '',
+								  file: "pom.xml",
+								  type: "pom"]
+							]
+						 )
+					 }
+				}
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
