@@ -1,0 +1,5 @@
+package com.stock.in.dto;
+
+public class StockDTO {
+
+}

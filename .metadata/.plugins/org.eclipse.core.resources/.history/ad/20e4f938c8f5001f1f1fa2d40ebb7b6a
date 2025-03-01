@@ -1,0 +1,4 @@
+spring.application.name=stock-tracker
+server.servlet.context-path=/stock-tracker
+
+

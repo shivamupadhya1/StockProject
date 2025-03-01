@@ -1,0 +1,70 @@
+package com.stock.in.controller;
+
+import com.stock.in.dto.StockDTO;
+import com.stock.in.exception.StockException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+@Slf4j
+@Service
+public class StockController {
+    private static final String STOCK_SYMBOL = "DJI"; // Use DJI or any other stock symbol
+    private final Queue<StockDTO> stockQueue = new ConcurrentLinkedQueue<>();
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${alphavantage.api.key}")
+    private String apiKey;  // Injected from application.properties
+
+    @Scheduled(fixedRate = 5000)
+    public void fetchStockPrice() {
+        try {
+            log.info("Fetching stock price for {}", STOCK_SYMBOL);
+            
+            String url = UriComponentsBuilder.fromHttpUrl("https://www.alphavantage.co/query")
+                    .queryParam("function", "TIME_SERIES_INTRADAY")
+                    .queryParam("symbol", STOCK_SYMBOL)
+                    .queryParam("interval", "5min")
+                    .queryParam("apikey", apiKey)
+                    .toUriString();
+
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+
+            if (response == null || !response.containsKey("Time Series (5min)")) {
+                log.error("Invalid response from Alpha Vantage API: {}", response);
+                return;
+            }
+
+            Map<String, Object> timeSeries = (Map<String, Object>) response.get("Time Series (5min)");
+            String latestTimestamp = timeSeries.keySet().iterator().next(); // Get latest timestamp
+            Map<String, String> latestData = (Map<String, String>) timeSeries.get(latestTimestamp);
+
+            BigDecimal price = new BigDecimal(latestData.get("1. open"));
+            log.info("Stock fetched: Symbol={}, Price={}", STOCK_SYMBOL, price);
+
+            stockQueue.add(new StockDTO(STOCK_SYMBOL, price, LocalDateTime.now()));
+
+            if (stockQueue.size() > 10) {
+                stockQueue.poll();
+            }
+        } catch (Exception e) {
+            log.error("Error fetching stock price: {}", e.getMessage());
+        }
+    }
+
+    public List<StockDTO> getRecentStockPrices() {
+        List<StockDTO> stocks = List.copyOf(stockQueue);
+        log.info("Returning {} stock records", stocks.size());
+        return stocks;
+    }
+}
