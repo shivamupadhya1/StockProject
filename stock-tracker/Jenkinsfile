@@ -53,7 +53,11 @@ pipeline {
                     withDockerRegistry([credentialsId: DOCKER_CREDENTIALS_ID, url: '']) {
                         dir('stock-tracker') {
                             echo 'Pushing Docker image to registry...'
-                            bat "docker push ${IMAGE_NAME}:latest || true"
+                            bat """
+                                docker push ${IMAGE_NAME}:latest
+                                if %ERRORLEVEL% NEQ 0 exit /b 0
+                            """
+
                         }
                     }
                 }
