@@ -1,8 +1,9 @@
 pipeline {
     agent any
     environment {
-        SONAR_HOST_URL = 'http://localhost:9000' // Update if SonarQube runs on a different port
-        MAVEN_REPO_LOCAL = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
+        IMAGE_NAME = 'shivam/stock-tracker'  // Change this to your DockerHub repo name
+        DOCKER_CREDENTIALS_ID = 'DOCKER_CRED'  // Jenkins credentials ID for DockerHub
+        SONAR_CREDENTIALS_ID = 'SONAR_TOKEN'  // SonarQube credentials ID
     }
     stages {
         stage('Build') {
@@ -15,30 +16,35 @@ pipeline {
                 }
             }
         }
-
         stage('SonarQube Analysis') {
             steps {
-                dir('stock-tracker') {
-                    withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_AUTH_TOKEN')]) {
-                        script {
-                            echo 'Running SonarQube Analysis...'
-                            bat """
-                                mvn sonar:sonar ^
-                                    -Dsonar.projectKey=stock-tracker ^
-                                    -Dsonar.host.url=%SONAR_HOST_URL% ^
-                                    -Dsonar.login=%SONAR_AUTH_TOKEN%
-                            """
+                script {
+                    withSonarQubeEnv('SonarQube') {
+                        bat 'mvn sonar:sonar -Dsonar.projectKey=stock-tracker -Dsonar.host.url=http://localhost:9000 -Dsonar.login=%SONAR_CREDENTIALS_ID%'
+                    }
+                }
+            }
+        }
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    withDockerRegistry([credentialsId: DOCKER_CREDENTIALS_ID, url: '']) {
+                        dir('stock-tracker') {
+                            echo 'Building Docker image...'
+                            bat "docker build -t ${IMAGE_NAME}:latest ."
+
+                            echo 'Pushing Docker image to registry...'
+                            bat "docker push ${IMAGE_NAME}:latest"
                         }
                     }
                 }
             }
         }
-
         stage('Nexus Deploy') {
             steps {
                 dir('stock-tracker') {
                     script {
-                        echo 'Deploying....'
+                        echo 'Deploying to Nexus...'
                         def mavenPom = readMavenPom file: 'pom.xml'
                         nexusArtifactUploader(
                             nexusVersion: 'nexus3',
@@ -63,17 +69,15 @@ pipeline {
                 }
             }
         }
-
         stage('JBoss Deployment') {
             steps {
                 dir('integration_clients') {
                     withCredentials([usernamePassword(credentialsId: 'JBOSS_CRED', usernameVariable: 'JBOSS_CRED_USER', passwordVariable: 'JBOSS_CRED_PASSWORD')]) {
                         script {
                             echo 'Deploying to JBoss....'
+                            def mavenRepoLocal = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
                             bat """
-                                mvn -Dmaven.repo.local=%MAVEN_REPO_LOCAL% wildfly:deploy-only ^
-                                    -Dwildfly.username=%JBOSS_CRED_USER% ^
-                                    -Dwildfly.password=%JBOSS_CRED_PASSWORD%
+                                mvn -Dmaven.repo.local=${mavenRepoLocal} wildfly:deploy-only -Dwildfly.username=%JBOSS_CRED_USER% -Dwildfly.password=%JBOSS_CRED_PASSWORD%
                             """
                         }
                     }
@@ -81,10 +85,9 @@ pipeline {
             }
         }
     }
-    
     post {
         success {
-            echo 'Build succeeded!'
+            echo 'Build and Deployment succeeded!'
         }
         failure {
             echo 'Build failed!'
