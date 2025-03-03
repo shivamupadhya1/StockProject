@@ -3,7 +3,7 @@ pipeline {
     environment {
         SONAR_HOST_URL = 'http://localhost:9000' // Update if SonarQube runs on a different port
         MAVEN_REPO_LOCAL = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
-        IMAGE_NAME = 'shivam/stock-tracker'  // Change this to your DockerHub repo name
+        IMAGE_NAME = 'shivamupadhya1/stock-tracker'  // Change this to your DockerHub repo name
         DOCKER_CREDENTIALS_ID = 'DOCKER_CRED'  // Jenkins credentials ID for DockerHub
     }
     stages {
