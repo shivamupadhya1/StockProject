@@ -36,14 +36,22 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build') {
+            steps {
+                script {
+                    dir('stock-tracker') {
+                        echo 'Building Docker image...'
+                        bat "docker build -t ${IMAGE_NAME}:latest ."
+                    }
+                }
+            }
+        }
+
+        stage('Docker Push') {
             steps {
                 script {
                     withDockerRegistry([credentialsId: DOCKER_CREDENTIALS_ID, url: '']) {
                         dir('stock-tracker') {
-                            echo 'Building Docker image...'
-                            bat "docker build -t ${IMAGE_NAME}:latest ."
-
                             echo 'Pushing Docker image to registry...'
                             bat "docker push ${IMAGE_NAME}:latest"
                         }
