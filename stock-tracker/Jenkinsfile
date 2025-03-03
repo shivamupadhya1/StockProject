@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    environment {
+        SONAR_HOST_URL = 'http://localhost:9000' // Update if SonarQube runs on a different port
+        MAVEN_REPO_LOCAL = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
+    }
     stages {
         stage('Build') {
             steps {
@@ -11,55 +15,73 @@ pipeline {
                 }
             }
         }
-        stage('Nexus Deploy') {
+
+        stage('SonarQube Analysis') {
             steps {
-				dir('stock-tracker') {
-					script{
-						echo 'Deploying....'
-						def mavenPom = readMavenPom file: 'pom.xml'
-						nexusArtifactUploader(
-							nexusVersion: 'nexus3',
-							protocol: 'http',
-							nexusUrl: 'localhost:8090',
-							groupId: "${mavenPom.groupId}",
-							version: "${mavenPom.version}",
-							repository: 'INTEGRATIONS_CLIENT',
-							credentialsId: 'NEXUS_CRED',
-							artifacts: [
-								[artifactId: "${mavenPom.artifactId}",
-								 classifier: '',
-								 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.war",
-								 type: 'jar'],
-								 [artifactId: "${mavenPom.artifactId}",
-								  classifier: '',
-								  file: "pom.xml",
-								  type: "pom"]
-							]
-						 )
-					 }
-				}
+                dir('stock-tracker') {
+                    withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_AUTH_TOKEN')]) {
+                        script {
+                            echo 'Running SonarQube Analysis...'
+                            bat """
+                                mvn sonar:sonar ^
+                                    -Dsonar.projectKey=stock-tracker ^
+                                    -Dsonar.host.url=%SONAR_HOST_URL% ^
+                                    -Dsonar.login=%SONAR_AUTH_TOKEN%
+                            """
+                        }
+                    }
+                }
             }
         }
-	stage('JBoss Deployment') {
-	    steps {
-	        dir('integration_clients') {
-	            withCredentials([usernamePassword(credentialsId: 'JBOSS_CRED', usernameVariable: 'JBOSS_CRED_USER', passwordVariable: 'JBOSS_CRED_PASSWORD')]) {
-	                script {
-	                    echo 'Deploying to JBoss....'
-	
-	                    // Define the local Maven repository path
-	                    def mavenRepoLocal = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
-	
-	                    // Deploy to JBoss using Maven on Windows
-	                    bat """
-	                        mvn -Dmaven.repo.local=${mavenRepoLocal} wildfly:deploy-only -Dwildfly.username=%JBOSS_CRED_USER% -Dwildfly.password=%JBOSS_CRED_PASSWORD%
-	                    """
-	                }
-	            }
-	        }
-	    }
-	}
+
+        stage('Nexus Deploy') {
+            steps {
+                dir('stock-tracker') {
+                    script {
+                        echo 'Deploying....'
+                        def mavenPom = readMavenPom file: 'pom.xml'
+                        nexusArtifactUploader(
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            nexusUrl: 'localhost:8090',
+                            groupId: "${mavenPom.groupId}",
+                            version: "${mavenPom.version}",
+                            repository: 'INTEGRATIONS_CLIENT',
+                            credentialsId: 'NEXUS_CRED',
+                            artifacts: [
+                                [artifactId: "${mavenPom.artifactId}",
+                                 classifier: '',
+                                 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.war",
+                                 type: 'jar'],
+                                [artifactId: "${mavenPom.artifactId}",
+                                 classifier: '',
+                                 file: "pom.xml",
+                                 type: "pom"]
+                            ]
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('JBoss Deployment') {
+            steps {
+                dir('integration_clients') {
+                    withCredentials([usernamePassword(credentialsId: 'JBOSS_CRED', usernameVariable: 'JBOSS_CRED_USER', passwordVariable: 'JBOSS_CRED_PASSWORD')]) {
+                        script {
+                            echo 'Deploying to JBoss....'
+                            bat """
+                                mvn -Dmaven.repo.local=%MAVEN_REPO_LOCAL% wildfly:deploy-only ^
+                                    -Dwildfly.username=%JBOSS_CRED_USER% ^
+                                    -Dwildfly.password=%JBOSS_CRED_PASSWORD%
+                            """
+                        }
+                    }
+                }
+            }
+        }
     }
+    
     post {
         success {
             echo 'Build succeeded!'
