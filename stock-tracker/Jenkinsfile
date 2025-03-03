@@ -99,9 +99,9 @@ pipeline {
                 dir('integration_clients') {
                     withCredentials([usernamePassword(credentialsId: 'JBOSS_CRED', usernameVariable: 'JBOSS_CRED_USER', passwordVariable: 'JBOSS_CRED_PASSWORD')]) {
                         script {
-                            echo 'Deploying to JBoss....'
+                            echo 'Deploying to JBoss using WildFly Maven Plugin (4.2.2)...'
                             bat """
-                                mvn -Dmaven.repo.local=%MAVEN_REPO_LOCAL% wildfly:deploy-only ^
+                                mvn -Dmaven.repo.local=%MAVEN_REPO_LOCAL% org.wildfly.plugins:wildfly-maven-plugin:4.2.2:deploy ^
                                     -Dwildfly.username=%JBOSS_CRED_USER% ^
                                     -Dwildfly.password=%JBOSS_CRED_PASSWORD%
                             """
@@ -110,6 +110,7 @@ pipeline {
                 }
             }
         }
+
     }
     
     post {
