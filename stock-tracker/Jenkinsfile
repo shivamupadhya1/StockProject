@@ -1,0 +1,123 @@
+pipeline {
+    agent any
+    environment {
+        SONAR_HOST_URL = 'http://localhost:9000' // Update if SonarQube runs on a different port
+        MAVEN_REPO_LOCAL = 'C:\\Users\\shivam.upadhyay\\.m2\\repository'
+        IMAGE_NAME = 'shivamupadhya1/stock-tracker'  // Change this to your DockerHub repo name
+        DOCKER_CREDENTIALS_ID = 'DOCKER_CRED'  // Jenkins credentials ID for DockerHub
+    }
+    stages {
+        stage('Build') {
+            steps {
+                dir('stock-tracker') {
+                    script {
+                        echo 'Building the project...'
+                        bat 'mvn clean install'
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('stock-tracker') {
+                    withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_AUTH_TOKEN')]) {
+                        script {
+                            echo 'Running SonarQube Analysis...'
+                            bat """
+                                mvn sonar:sonar ^
+                                    -Dsonar.projectKey=stock-tracker ^
+                                    -Dsonar.host.url=%SONAR_HOST_URL% ^
+                                    -Dsonar.login=%SONAR_AUTH_TOKEN%
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    dir('stock-tracker') {
+                        echo 'Building Docker image...'
+                        bat "docker build -t ${IMAGE_NAME}:latest ."
+                    }
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                script {
+                    withDockerRegistry([credentialsId: DOCKER_CREDENTIALS_ID, url: '']) {
+                        dir('stock-tracker') {
+                            echo 'Pushing Docker image to registry...'
+                            bat """
+                                docker push ${IMAGE_NAME}:latest
+                                if %ERRORLEVEL% NEQ 0 exit /b 0
+                            """
+
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Nexus Deploy') {
+            steps {
+                dir('stock-tracker') {
+                    script {
+                        echo 'Deploying....'
+                        def mavenPom = readMavenPom file: 'pom.xml'
+                        nexusArtifactUploader(
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            nexusUrl: 'localhost:8090',
+                            groupId: "${mavenPom.groupId}",
+                            version: "${mavenPom.version}",
+                            repository: 'INTEGRATIONS_CLIENT',
+                            credentialsId: 'NEXUS_CRED',
+                            artifacts: [
+                                [artifactId: "${mavenPom.artifactId}",
+                                 classifier: '',
+                                 file: "./target/${mavenPom.artifactId}-${mavenPom.version}.war",
+                                 type: 'war'],
+                                [artifactId: "${mavenPom.artifactId}",
+                                 classifier: '',
+                                 file: "pom.xml",
+                                 type: "pom"]
+                            ]
+                        )
+                    }
+                }
+            }
+        }
+
+        stage('JBoss Deployment') {
+            steps {
+                dir('integration_clients') {
+                    withCredentials([usernamePassword(credentialsId: 'JBOSS_CRED', usernameVariable: 'JBOSS_CRED_USER', passwordVariable: 'JBOSS_CRED_PASSWORD')]) {
+                        script {
+                            echo 'Deploying to JBoss....'
+                            bat """
+                                mvn -Dmaven.repo.local=%MAVEN_REPO_LOCAL% wildfly:deploy-only ^
+                                    -Dwildfly.username=%JBOSS_CRED_USER% ^
+                                    -Dwildfly.password=%JBOSS_CRED_PASSWORD%
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
