@@ -1,14 +1,11 @@
-# Use an OpenJDK base image
-FROM openjdk:17-jdk-slim
+FROM tomcat:9.0-jdk17
 
-# Set working directory
-WORKDIR /app
+# Remove default Tomcat apps
+RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy the built WAR file to the container
-COPY target/stock-tracker-*.war app.war
+# Copy WAR as ROOT
+COPY *.war /usr/local/tomcat/webapps/ROOT.war
 
-# Expose the application port
 EXPOSE 8080
 
-# Command to run the application
-ENTRYPOINT ["java", "-jar", "app.war"]
+CMD ["catalina.sh", "run"]
