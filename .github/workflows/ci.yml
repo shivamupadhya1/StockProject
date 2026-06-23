@@ -35,7 +35,7 @@ jobs:
           cache: maven
 
       - name: Build
-        run: mvn clean install -Ddependency-check.skip=true
+        run: cd stock-tracker && mvn clean install -Ddependency-check.skip=true
 
       - name: Upload test report
         if: always()
